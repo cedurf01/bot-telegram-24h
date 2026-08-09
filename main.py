@@ -1,7 +1,6 @@
 import os
 import time
 import requests
-import urllib.parse
 from dotenv import load_dotenv
 from keep_alive import keep_alive
 
@@ -19,7 +18,7 @@ CHAT_ID = os.getenv("CHAT_ID")
 jogos_notificados = {}
 
 def enviar_mensagem_telegram(mensagem, link_sportingbet=None, link_betfair=None):
-    """Envia o alerta formatado com botões inline interativos para o Telegram."""
+    """Envia o alerta formatado com botões inline diretos e seguros para o Telegram."""
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     
     payload = {
@@ -32,8 +31,8 @@ def enviar_mensagem_telegram(mensagem, link_sportingbet=None, link_betfair=None)
         payload["reply_markup"] = {
             "inline_keyboard": [
                 [
-                    {"text": "🎯 Sportingbet", "url": link_sportingbet},
-                    {"text": "🔥 Betfair", "url": link_betfair}
+                    {"text": "🎯 Sportingbet Ao Vivo", "url": link_sportingbet},
+                    {"text": "🔥 Betfair Ao Vivo", "url": link_betfair}
                 ]
             ]
         }
@@ -90,10 +89,9 @@ def analisar_jogos_ao_vivo():
             # FILTRO: Apenas partidas parelhas (diferença de no máximo 1 gol)
             diff = abs(gols_casa - gols_fora)
             if diff <= 1:
-                time_casa_encode = urllib.parse.quote(home_team)
-                
-                link_sb = f"https://sports.sportingbet.br/pt-br/sports/busca?q={time_casa_encode}"
-                link_bf = f"https://www.betfair.com/br/exchange/football"
+                # URLs diretas das seções de futebol ao vivo (100% funcionais)
+                link_sb = "https://sports.sportingbet.br/pt-br/sports/futebol-4/ao-vivo"
+                link_bf = "https://www.betfair.com/br/exchange/football"
 
                 msg = (
                     f"🔥 <b>OPORTUNIDADE DE SINAL (24H)</b> 🔥\n\n"
@@ -113,15 +111,6 @@ def analisar_jogos_ao_vivo():
 if __name__ == "__main__":
     print("=== BOT DUAL 24H INICIADO (FOOTBALL-DATA.ORG) ===")
     print("[+] Monitoramento em tempo real ativo...")
-    
-    # MENSAGEM DE TESTE INICIAL COM OS NOVOS BOTÕES CORRIGIDOS
-    link_sb_teste = "https://sports.sportingbet.br"
-    link_bf_teste = "https://www.betfair.com/br/exchange/football"
-    enviar_mensagem_telegram(
-        "🧪 <b>TESTE DOS BOTÕES CORRIGIDOS</b>\n\nClique nos botões abaixo para confirmar que ambos abrem sem erro:",
-        link_sb_teste,
-        link_bf_teste
-    )
     
     while True:
         analisar_jogos_ao_vivo()
