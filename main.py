@@ -1,6 +1,7 @@
 import os
 import time
 import requests
+import urllib.parse
 from dotenv import load_dotenv
 from keep_alive import keep_alive
 
@@ -10,7 +11,7 @@ keep_alive()
 # Carrega as variáveis de ambiente
 load_dotenv()
 
-FOOTBALL_DATA_KEY = os.getenv("API_SPORTS_KEY") # Sua chave da Football-Data.org
+FOOTBALL_DATA_KEY = os.getenv("API_SPORTS_KEY")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
@@ -18,12 +19,17 @@ CHAT_ID = os.getenv("CHAT_ID")
 jogos_notificados = {}
 
 def enviar_mensagem_telegram(mensagem, link_sportingbet=None, link_betfair=None):
-    """Envia alerta formatado para o canal ou grupo do Telegram."""
+    """Envia alerta formatado para o canal ou grupo do Telegram com botões seguros."""
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     
-    reply_markup = None
+    payload = {
+        "chat_id": CHAT_ID,
+        "text": mensagem,
+        "parse_mode": "HTML"
+    }
+
     if link_sportingbet and link_betfair:
-        reply_markup = {
+        payload["reply_markup"] = {
             "inline_keyboard": [
                 [
                     {"text": "🎯 Sportingbet", "url": link_sportingbet},
@@ -32,15 +38,15 @@ def enviar_mensagem_telegram(mensagem, link_sportingbet=None, link_betfair=None)
             ]
         }
         
-    payload = {
-        "chat_id": CHAT_ID,
-        "text": mensagem,
-        "parse_mode": "HTML",
-        "reply_markup": reply_markup
-    }
-    
     try:
         r = requests.post(url, json=payload, timeout=10)
+        
+        # Se falhar com os botões, tenta enviar pelo menos o texto para não perder o sinal
+        if r.status_code != 200 and "reply_markup" in payload:
+            print(f"⚠️ Alerta: Erro no envio com botões ({r.text}). Enviando sem botões...")
+            del payload["reply_markup"]
+            r = requests.post(url, json=payload, timeout=10)
+            
         return r.status_code == 200
     except Exception as e:
         print(f"❌ Erro ao enviar mensagem no Telegram: {e}")
@@ -84,8 +90,8 @@ def analisar_jogos_ao_vivo():
             # REGRA DE FILTRO: Placar Parelho (diferença de no máximo 1 gol)
             diff = abs(gols_casa - gols_fora)
             if diff <= 1:
-                # Cria os links de busca rápida para as casas de aposta
-                termo_busca = f"{home_team} {away_team}".replace(" ", "%20")
+                # Formata os nomes para URLs seguras no Telegram
+                termo_busca = urllib.parse.quote(f"{home_team} {away_team}")
                 link_sb = f"https://sports.sportingbet.br/pt-br/sports/busca?q={termo_busca}"
                 link_bf = f"https://www.betfair.com/br/busca?q={termo_busca}"
 
@@ -108,8 +114,14 @@ if __name__ == "__main__":
     print("=== BOT DUAL 24H INICIADO (FOOTBALL-DATA.ORG) ===")
     print("[+] Monitorando jogos ao vivo com limite ampliado...")
     
-    # Envia uma mensagem de teste imediata ao ligar
-    enviar_mensagem_telegram("🧪 <b>TESTE DE SISTEMA</b>\n\nO bot está rodando no Render via Football-Data.org com sucesso!")
+    # Teste de botão seguro ao iniciar
+    link_sb_teste = "https://sports.sportingbet.br"
+    link_bf_teste = "https://www.betfair.com/br"
+    enviar_mensagem_telegram(
+        "🧪 <b>TESTE DE BOTOES</b>\n\nVerificando funcionamento dos botões inline abaixo:",
+        link_sb_teste,
+        link_bf_teste
+    )
     
     while True:
         analisar_jogos_ao_vivo()
